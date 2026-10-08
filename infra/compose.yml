@@ -1,0 +1,100 @@
+# NOTE: this file is synced from the private wellclear repo.
+# The api / worker services (and their ../services build contexts) are
+# closed-source and NOT part of this repo. The GPL/AGPL components
+# (readsb-hub, mlat-server, tar1090) build standalone from their dirs.
+#
+# WellClear feeder network — core services (phase 0: empty services that start).
+# All images/refs pinned; see ../docs/DECISIONS.md for verification and SHAs.
+
+name: wellclear
+
+services:
+  # NOTE: no db service here — production DB is RDS Postgres (DATABASE_URL);
+  # local dev adds a db container via compose.dev.yml (docs/DECISIONS.md §15).
+
+  api:
+    build: ../services/api
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      WELLCLEAR_NAME: ${WELLCLEAR_NAME}
+      API_ADMIN_TOKEN: ${API_ADMIN_TOKEN}
+      PUBLIC_COORD_PRECISION: ${PUBLIC_COORD_PRECISION}
+      COMMUNITY_TERMS_VERSION: ${COMMUNITY_TERMS_VERSION}
+      MAIL_MODE: ${MAIL_MODE}
+    volumes:
+      - ../portal:/portal:ro
+    ports:
+      - "${API_PORT}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build: ../services/worker
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      HUB_JSON_DIR: /data/hub
+      MLAT_JSON_DIR: /data/mlat
+      WORKER_INTERVAL_SECONDS: ${WORKER_INTERVAL_SECONDS}
+    volumes:
+      - hub-json:/data/hub:ro
+      - mlat-work:/data/mlat:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      readsb-hub:
+        condition: service_started
+
+  # ---- Hub side: community software, configured (phases 1–2) ----
+
+  readsb-hub:
+    build: ./readsb-hub
+    environment:
+      HUB_BEAST_IN_PORT: ${HUB_BEAST_IN_PORT}
+      HUB_BEAST_OUT_PORT: ${HUB_BEAST_OUT_PORT}
+    ports:
+      - "${HUB_BEAST_IN_PORT}:30004"
+      - "${HUB_BEAST_OUT_PORT}:30005"
+    volumes:
+      - hub-json:/run/readsb
+      - globe-history:/run/globe_history
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/30004'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  mlat-server:
+    build: ./mlat-server
+    # AGPL: any patch to this image must be published (docs/DECISIONS.md §6)
+    command:
+      - --client-listen
+      - "0.0.0.0:31090"
+      # MLAT results into the hub as SBS; hub auto-listens sbs-mlat on sbs-in+1
+      # (verified: readsb net_io.c opens <port>7 when --net-sbs-in-port ends in 6)
+      - --filtered-basestation-connect
+      - readsb-hub:30107
+      - --work-dir
+      - /run/mlat-server
+    ports:
+      - "${MLAT_CLIENT_PORT}:31090"
+    volumes:
+      - mlat-work:/run/mlat-server
+
+  tar1090:
+    build: ./tar1090
+    ports:
+      - "${TAR1090_PORT}:80"
+    volumes:
+      - hub-json:/data:ro
+    depends_on:
+      readsb-hub:
+        condition: service_started
+
+volumes:
+  db-data:
+  hub-json:
+  globe-history:
+  mlat-work:

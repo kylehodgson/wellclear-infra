@@ -1,0 +1,17 @@
+# WellClear TLS edge (Let's Encrypt via HTTP-01; ports 80/443 are public).
+{
+    email kyle@wellclear.aero
+}
+
+# Portal + API (portal is mounted in the api container at /portal)
+wellclear.aero, www.wellclear.aero {
+    reverse_proxy api:8000
+}
+
+# Network map (tar1090)
+map.wellclear.aero {
+    reverse_proxy tar1090:80
+}
+
+# feed.wellclear.aero has NO HTTP — it's a DNS-only A record for raw TCP
+# (30004 beast ingest, 31090 mlat). Caddy must not try certificates for it.

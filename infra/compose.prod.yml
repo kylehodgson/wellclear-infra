@@ -1,0 +1,49 @@
+# NOTE: this file is synced from the private wellclear repo.
+# The api / worker services (and their ../services build contexts) are
+# closed-source and NOT part of this repo. The GPL/AGPL components
+# (readsb-hub, mlat-server, tar1090) build standalone from their dirs.
+#
+# Production overlay (AWS EC2). Use with core: 
+#   docker compose -f compose.yml -f compose.prod.yml up -d --build
+# Differences from dev: no fake feeders/db, restart policies, LOG ROTATION
+# (unbounded json-file was our one true append-log risk), Caddy TLS edge.
+
+services:
+  api:
+    restart: always
+    logging: &logopts
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+  worker:
+    restart: always
+    logging: *logopts
+  readsb-hub:
+    restart: always
+    logging: *logopts
+  mlat-server:
+    restart: always
+    logging: *logopts
+  tar1090:
+    restart: always
+    logging: *logopts
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - tar1090
+    logging: *logopts
+
+volumes:
+  caddy-data:
+  caddy-config:
