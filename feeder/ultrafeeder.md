@@ -9,12 +9,16 @@ Add to the ultrafeeder environment (docker-compose `environment:` list or the
 adsb.im web UI "Feeder" page):
 
 ```yaml
-- UUID=0d1fc3d7-4a5e-4a8e-9f01-3b8f2c9e1234      # your feeder UUID (REQUIRED, see below)
-- READSB_LAT=43.5000
-- READSB_LON=-80.4000
-- ALT=320
+- UUID=<your-uuid>                               # your feeder UUID (REQUIRED, see below)
+- READSB_LAT=<your-lat>
+- READSB_LON=<your-lon>
+- ALT=<your-alt-m>
 - ULTRAFEEDER_CONFIG=adsb,<hub-host>,30004,beast_reduce_plus_out,uuid=${UUID};mlat,<hub-host>,31090,uuid=${UUID}
 ```
+
+Replace the `<...>` placeholders: `UUID` is the feeder UUID you registered with
+(see "Am I feeding?" below), `READSB_LAT`/`READSB_LON` your receiver coordinates
+in decimal degrees, and `ALT` your altitude **in metres** (e.g. `320`).
 
 - `<hub-host>` — the WellClear ingest hostname (or IP while in beta)
 - **Use the SAME UUID for the adsb and mlat constructs** — one station is one
