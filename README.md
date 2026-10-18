@@ -8,7 +8,7 @@ the community software we run:
 |---|---|---|
 | [readsb](https://github.com/wiedehopf/readsb) (hub, aggregator mode) | GPL v3+ | Dockerfile, entrypoint, pinned SHA (`094720939c01943de82b14df6f42f67fff1cd514`) |
 | [mlat-server](https://github.com/wiedehopf/mlat-server) (wiedehopf fork) | **AGPL v3** | Dockerfile, pinned SHA (`9b27a6d609c5bb47549016412222a79ecb0f48e4`), and **any future patches** (`infra/mlat-server/patches/`) |
-| [tar1090](https://github.com/wiedehopf/tar1090) (network map) | GPL v2+ | Dockerfile, nginx config, pinned SHA (`e784ee5ae82948f41efe3ef5c235ade0943ab8ff`) |
+| [tar1090](https://github.com/wiedehopf/tar1090) (network map) | GPL v2+ | Dockerfile, nginx config, marker patch + regenerated sprite atlas, pinned SHA (`e784ee5ae82948f41efe3ef5c235ade0943ab8ff`) |
 
 ## AGPL note (why this repo exists)
 
@@ -41,10 +41,16 @@ SHAs in the table above, the AGPL note, and the deviations below.
 
 ## Deviations from upstream
 
-- **tar1090**: one link ("Receiver map" badge) is injected into
-  `index.html` at build time, pointing at our receiver map layer —
-  see the comment in `infra/tar1090/Dockerfile`. Everything else is
-  unmodified upstream at the pinned SHA.
+- **tar1090**: two build-time deviations, both applied by
+  `infra/tar1090/patches/rid-marker.sh` from files in that directory:
+  1. one link ("Receiver map" badge) is injected into `index.html`,
+     pointing at our receiver map layer
+  2. **Remote ID drone marker**: aircraft with a synthesized ICAO in the
+     unassigned `FF` prefix (our Remote ID feeders use the rid2all
+     convention) render as a quadcopter (`multicopter` shape added to
+     `markers.js`, `FF`-prefix hex forced to type Q4 in `planeObject.js`,
+     sprite atlas regenerated with tar1090's own iconTest generator — the
+     static atlas must match the JS shape list).
 - **mlat-server**: unmodified upstream at the pinned SHA. Any future patch
   must land in `infra/mlat-server/patches/` here BEFORE it deploys (AGPL),
   with the client-facing source URL in `mlat/config.py` updated to point
