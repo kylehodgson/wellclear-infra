@@ -6,7 +6,8 @@ ID radio; the open-source path uses a [DroneScout](https://dronescout.co/)
 receiver and [rid2all](https://github.com/kylehodgson/rid2all).
 
 ```
-DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ──SBS──▶ ultrafeeder ──beast──▶ feed.wellclear.aero
+DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ─┬─SBS─▶ ultrafeeder ─beast─▶ feed.wellclear.aero
+                                                                └─SBS (direct)─▶ feed.wellclear.aero:$HUB_SBS_IN_PORT
 ```
 
 rid2all is an open-source daemon (MIT) that:
@@ -37,13 +38,20 @@ for the drone details/icon.
 
 ## Feeding WellClear
 
-Your ultrafeeder's existing wellclear.aero feed carries the drones too:
-readsb merges the rid2all SBS into its aircraft table, and the normal
-`beast_reduce_plus_out` connector to `feed.wellclear.aero:30004` forwards
-everything (drones appear with synthesized `FFxxxx` ICAOs — an unassigned
-ICAO prefix that marks non-Mode-S sources). A dedicated Remote ID SBS
-ingest on the hub is planned; feeder configs will not need to change to
-use it.
+Two paths to the hub:
+
+1. **Via ultrafeeder (default):** readsb merges the rid2all SBS into its
+   aircraft table, and the normal `beast_reduce_plus_out` connector to
+   `feed.wellclear.aero:30004` forwards everything (drones appear with
+   synthesized `FFxxxx` ICAOs — an unassigned ICAO prefix that marks
+   non-Mode-S sources).
+2. **Direct SBS push:** the hub exposes a dedicated Remote ID SBS ingest on
+   `feed.wellclear.aero:${HUB_SBS_IN_PORT}` (internal 30106). Add a `[[push]]`
+   target to rid2all's `config.toml` — no ultrafeeder config change needed.
+   Use path 1 if your Pi already runs ultrafeeder; path 2 otherwise.
+
+Restrict the hub SBS port in the EC2 security group to feeder IPs — like
+the beast port, it is unauthenticated input.
 
 ## Requirements
 

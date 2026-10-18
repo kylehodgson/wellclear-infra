@@ -4,13 +4,13 @@
 # (readsb-hub, mlat-server, tar1090) build standalone from their dirs.
 #
 # WellClear feeder network — core services (phase 0: empty services that start).
-# All images/refs pinned; see ../docs/DECISIONS.md for verification and SHAs.
+# All images/refs pinned; see this repo's README for verification and SHAs.
 
 name: wellclear
 
 services:
   # NOTE: no db service here — production DB is RDS Postgres (DATABASE_URL);
-  # local dev adds a db container via compose.dev.yml (docs/DECISIONS.md §15).
+  # local dev adds a db container via compose.dev.yml (this repo's README).
 
   api:
     build: ../services/api
@@ -21,6 +21,12 @@ services:
       PUBLIC_COORD_PRECISION: ${PUBLIC_COORD_PRECISION}
       COMMUNITY_TERMS_VERSION: ${COMMUNITY_TERMS_VERSION}
       MAIL_MODE: ${MAIL_MODE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      MAIL_FROM: ${MAIL_FROM}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
     volumes:
       - ../portal:/portal:ro
     ports:
@@ -57,6 +63,10 @@ services:
     ports:
       - "${HUB_BEAST_IN_PORT}:30004"
       - "${HUB_BEAST_OUT_PORT}:30005"
+      # Dedicated Remote ID SBS ingest (rid2all direct-push path).
+      # Host side is env-configurable; container side MUST stay 30106 —
+      # mlat-server pushes SBS results to 30107 (readsb auto-opens <sbs-in>+1).
+      - "${HUB_SBS_IN_PORT}:30106"
     volumes:
       - hub-json:/run/readsb
       - globe-history:/run/globe_history
@@ -68,7 +78,7 @@ services:
 
   mlat-server:
     build: ./mlat-server
-    # AGPL: any patch to this image must be published (docs/DECISIONS.md §6)
+    # AGPL: any patch to this image must be published (this repo's README)
     command:
       - --client-listen
       - "0.0.0.0:31090"
