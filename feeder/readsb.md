@@ -72,5 +72,5 @@ changes so you can do it by hand.
 ## Status
 
 - Connector args verified against wiedehopf/readsb at the pinned commit
-  (see docs/DECISIONS.md §1, §9).
+  (see this repo's README).
 - Live-tested against a real hub with a synthetic source (phase 5).

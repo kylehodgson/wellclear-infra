@@ -63,9 +63,8 @@ services:
     ports:
       - "${HUB_BEAST_IN_PORT}:30004"
       - "${HUB_BEAST_OUT_PORT}:30005"
-      # Dedicated Remote ID SBS ingest (rid2all direct-push path).
-      # Host side is env-configurable; container side MUST stay 30106 —
-      # mlat-server pushes SBS results to 30107 (readsb auto-opens <sbs-in>+1).
+      # direct SBS push (Remote ID via rid2all); mlat results go to the
+      # auto-opened sbs-in+1 = 30107, so the internal port must stay 30106
       - "${HUB_SBS_IN_PORT}:30106"
     volumes:
       - hub-json:/run/readsb

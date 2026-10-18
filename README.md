@@ -35,5 +35,17 @@ accessible without access to the private repo.
 ## Verification discipline
 
 Every pinned SHA, port, and flag in this repo was verified against current
-upstream source (see `docs/DECISIONS.md` — the full decision log is synced from
-the private repo).
+upstream source before use. The full verification log lives in the private
+repository; the compliance-relevant facts are documented here: the pinned
+SHAs in the table above, the AGPL note, and the deviations below.
+
+## Deviations from upstream
+
+- **tar1090**: one link ("Receiver map" badge) is injected into
+  `index.html` at build time, pointing at our receiver map layer —
+  see the comment in `infra/tar1090/Dockerfile`. Everything else is
+  unmodified upstream at the pinned SHA.
+- **mlat-server**: unmodified upstream at the pinned SHA. Any future patch
+  must land in `infra/mlat-server/patches/` here BEFORE it deploys (AGPL),
+  with the client-facing source URL in `mlat/config.py` updated to point
+  at this repository.

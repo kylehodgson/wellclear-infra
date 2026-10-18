@@ -10,7 +10,24 @@ wellclear.aero, www.wellclear.aero {
 
 # Network map (tar1090)
 map.wellclear.aero {
-    reverse_proxy tar1090:80
+    # aircraft map = tar1090 (stock parts, unpatched)
+    # receiver map = our own layer: /receivers (page) + the public geojson it reads
+    handle /v1/network/* {
+        reverse_proxy api:8000
+    }
+    # the portal is CANONICAL on wellclear.aero — session cookies are
+    # per-domain, so serving the portal here would split sessions across
+    # domains (forced re-logins). Redirect instead.
+    handle /portal/* {
+        redir https://wellclear.aero{uri} permanent
+    }
+    handle /receivers {
+        rewrite * /portal/map.html
+        reverse_proxy api:8000
+    }
+    handle {
+        reverse_proxy tar1090:80
+    }
 }
 
 # feed.wellclear.aero has NO HTTP — it's a DNS-only A record for raw TCP

@@ -50,8 +50,9 @@ Two paths to the hub:
    target to rid2all's `config.toml` — no ultrafeeder config change needed.
    Use path 1 if your Pi already runs ultrafeeder; path 2 otherwise.
 
-Restrict the hub SBS port in the EC2 security group to feeder IPs — like
-the beast port, it is unauthenticated input.
+The hub SBS port is unauthenticated input like the beast port; both are open
+in the EC2 security group so feeders on dynamic IPs can connect — restrict
+them to known feeder IPs if you can.
 
 ## Requirements
 
