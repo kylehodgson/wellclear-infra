@@ -98,6 +98,9 @@ services:
       - "${TAR1090_PORT}:80"
     volumes:
       - hub-json:/data:ro
+      # tar1090 requests globe_history/... relative to the page URL for
+      # per-aircraft history (traces) and heatmap views
+      - globe-history:/usr/share/nginx/html/tar1090/globe_history:ro
     depends_on:
       readsb-hub:
         condition: service_started

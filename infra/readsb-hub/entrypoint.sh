@@ -1,6 +1,10 @@
 #!/bin/bash
 # Hub readsb entrypoint — network-only aggregator.
 # Flags verified against wiedehopf/readsb at the pinned commit (this repo's README).
+# --write-json-globe-index: enables trace writing for tar1090's history/replay
+# view. Required for SBS-ingested aircraft (Remote ID via rid2all): without it
+# readsb tracks them live but writes NO globe-history traces (verified
+# empirically against the pinned commit, 2026-10).
 set -euo pipefail
 
 : "${HUB_BEAST_IN_PORT:=30004}"     # feeders connect here (beast_reduce_plus_out + uuid)
@@ -26,5 +30,6 @@ exec tini -- readsb \
     --write-json-every=1 \
     --json-location-accuracy=2 \
     --write-globe-history=/run/globe_history \
+    --write-json-globe-index \
     --db-file=/usr/local/share/aircraft.csv.gz \
     --quiet
