@@ -6,57 +6,84 @@ ID radio; the open-source path uses a [DroneScout](https://dronescout.co/)
 receiver and [rid2all](https://github.com/kylehodgson/rid2all).
 
 ```
-DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ─┬─SBS─▶ ultrafeeder ─beast─▶ feed.wellclear.aero
-                                                                └─SBS (direct)─▶ feed.wellclear.aero:$HUB_SBS_IN_PORT
+DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ──SBS──▶ ultrafeeder ──beast──▶ feed.wellclear.aero
 ```
 
-rid2all is an open-source daemon (MIT) that:
+**Three steps.** Drones then ride your existing aggregator feeds (including
+wellclear.aero) and appear on the network map with synthesized `FFxxxx` hexes
+alongside regular aircraft.
 
-- reads both DroneScout MAVLink formats (`OPEN_DRONE_ID_MESSAGE_PACK` and
-  `ADSB_VEHICLE`, auto-detected — switch the radio's mode any time)
-- tracks multiple aircraft, deduplicates GNSS jitter (stationary hold)
-- emits SBS/BaseStation: serves a port and/or pushes to ultrafeeder's
-  `READSB_NET_SBS_INPUT_PORT`
-- writes a readsb aircraft db (`--db-file`) so tar1090 shows drone
-  type/description/serial — with a `multicopter` tar1090 patch available
-  (upstream PR pending) for a proper drone icon instead of the fixed-wing
-  'uav' silhouette
+## Install (ultrafeeder / adsb.im compose stack)
 
-## Install
+1. **Plug the DroneScout radio** into the Pi (USB). It shows up as
+   `/dev/ttyACM0` (`ls /dev/ttyACM*`).
+2. **Run the installer** (from the rid2all repo, or once published:
+   `curl -fsSL <raw-url>/setup-ultrafeeder.sh | sudo bash`):
+   ```sh
+   git clone https://github.com/kylehodgson/rid2all && cd rid2all
+   sudo bash setup-ultrafeeder.sh /opt/adsb     # your compose dir
+   ```
+   The script writes a compose **override** file (your `docker-compose.yml`
+   is never touched), the rid2all config, the shared drone-db dir, starts
+   the containers, and verifies the push connected.
+3. **Check**: the script's last lines show `SBS push into ultrafeeder:
+   CONNECTED`. Drones appear on your local tar1090 map
+   (`http://<pi>:8080`) and on wellclear.aero's map within a minute of
+   flying.
 
-Full instructions (including a drop-in service for an existing
-ultrafeeder compose stack) live in the rid2all repo:
+Re-run the script any time (e.g. after moving the radio or changing USB
+ports) — it's idempotent.
 
-**https://github.com/kylehodgson/rid2all** — see the README quick start and
-`compose-examples/ultrafeeder-service.yml` / `ultrafeeder-config.toml`.
+### Troubleshooting
 
-Short version: run rid2all in the same compose network as your ultrafeeder,
-push SBS to `ultrafeeder:32006` with
-`READSB_NET_SBS_INPUT_PORT=32006` set on the ultrafeeder service, and add
-`READSB_EXTRA_ARGS=--db-file=/rid-db/db.csv.gz` + a shared `rid-db` volume
-for the drone details/icon.
+- **`no /dev/ttyACM0`** — radio not plugged in / different port
+  (`ls /dev/ttyACM*`); re-run the script after plugging in.
+- **rid2all crash-looping with "config.toml is a DIRECTORY"** — you ran
+  `docker compose up` before the config file existed; the script fixes this
+  itself on re-run (`rm -rf /opt/adsb/config.toml` then re-run).
+- **"READSB_EXTRA_ARGS already set" note** — your stack already uses that
+  env var; merge the `--db-file=/rid-db/db.csv.gz` flag into your existing
+  value.
 
-## Feeding WellClear
+## What the script changes (and doesn't)
 
-Two paths to the hub:
+| File | Change |
+|---|---|
+| `docker-compose.override.yml` | **new** (auto-loaded by compose) — rid2all service + ultrafeeder SBS input/db env |
+| `rid2all-config.toml` | **new** — rid2all config |
+| `rid-db/` | **new** — drone db export + copy of the standard aircraft db |
+| `docker-compose.yml` | **unchanged** |
+| existing feeds (piaware, adsb.fi, …) | **unchanged** |
 
-1. **Via ultrafeeder (default):** readsb merges the rid2all SBS into its
-   aircraft table, and the normal `beast_reduce_plus_out` connector to
-   `feed.wellclear.aero:30004` forwards everything (drones appear with
-   synthesized `FFxxxx` ICAOs — an unassigned ICAO prefix that marks
-   non-Mode-S sources).
-2. **Direct SBS push:** the hub exposes a dedicated Remote ID SBS ingest on
-   `feed.wellclear.aero:${HUB_SBS_IN_PORT}` (internal 30106). Add a `[[push]]`
-   target to rid2all's `config.toml` — no ultrafeeder config change needed.
-   Use path 1 if your Pi already runs ultrafeeder; path 2 otherwise.
-
-The hub SBS port is unauthenticated input like the beast port; both are open
-in the EC2 security group so feeders on dynamic IPs can connect — restrict
-them to known feeder IPs if you can.
+Uninstall: `docker compose down && rm docker-compose.override.yml && docker compose up -d`
+(rm `rid2all-config.toml` and `rid-db/` too if you want a full cleanup).
 
 ## Requirements
 
 - DroneScout receiver (DS110 dongle, DS220, or DB120) — 2.4 GHz Bluetooth
   Legacy/Long Range + WLAN Beacon Remote ID
-- A Raspberry Pi or any Linux box running the ultrafeeder compose stack
-- No SDR needed for drone reception (keeps working alongside your 1090 MHz feed)
+- A Raspberry Pi or any Linux box already running an ultrafeeder compose stack
+- No SDR needed for drone reception (coexists with your 1090 MHz feed)
+
+## Without ultrafeeder (direct push)
+
+No local readsb? rid2all can push SBS straight to the hub:
+`feed.wellclear.aero:${HUB_SBS_IN_PORT}` (internal 30106, currently 30105
+host-side). Add to `rid2all-config.toml`:
+
+```toml
+[[sbs.push]]
+host = "feed.wellclear.aero"
+port = 30105
+```
+
+## Local display polish (optional — no effect on feeding)
+
+By default tar1090 shows drones with its stock UAV icon (a fixed-wing
+military drone silhouette) and no type/reg info. For a proper quadcopter
+icon + type/description/serial in the popup:
+
+- the `--db-file` flag on ultrafeeder (already set by the installer) makes
+  readsb load rid2all's per-drone db export (type code Q4 = rotorcraft);
+- a small tar1090 `markers.js` + sprite patch maps Q-codes to a
+  multicopter icon — pending as an upstream PR; ping us if you want the patch.
