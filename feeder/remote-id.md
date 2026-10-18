@@ -6,12 +6,18 @@ ID radio; the open-source path uses a [DroneScout](https://dronescout.co/)
 receiver and [rid2all](https://github.com/kylehodgson/rid2all).
 
 ```
-DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ──SBS──▶ ultrafeeder ──beast──▶ feed.wellclear.aero
+DroneScout DS110/DS220/DB120 ──MAVLink (USB serial)──▶ rid2all ─┬─SBS──▶ ultrafeeder (local map)
+                                                               └─SBS──▶ feed.wellclear.aero:30105 (network)
 ```
 
-**Three steps.** Drones then ride your existing aggregator feeds (including
-wellclear.aero) and appear on the network map with synthesized `FFxxxx` hexes
-alongside regular aircraft.
+**Three steps.** Drones appear on the WellClear network map with synthesized
+`FFxxxx` hexes alongside regular aircraft.
+
+> **Why the direct push?** readsb forwards only raw Mode-S messages on its
+> beast outputs — SBS-ingested aircraft (our drones) never ride the beast
+> feed (verified in readsb `net_io.c`: SBS-input messages go to SBS outputs
+> only). So drones reach the hub via rid2all's direct SBS push; everything
+> else (your 1090 feed, MLAT) is unaffected.
 
 ## Install (ultrafeeder / adsb.im compose stack)
 
@@ -65,9 +71,9 @@ Uninstall: `docker compose down && rm docker-compose.override.yml && docker comp
 - A Raspberry Pi or any Linux box already running an ultrafeeder compose stack
 - No SDR needed for drone reception (coexists with your 1090 MHz feed)
 
-## Without ultrafeeder (direct push)
+## Without ultrafeeder (or second push target)
 
-No local readsb? rid2all can push SBS straight to the hub:
+rid2all can push SBS straight to the hub (and to multiple targets at once):
 `feed.wellclear.aero:${HUB_SBS_IN_PORT}` (internal 30106, currently 30105
 host-side). Add to `rid2all-config.toml`:
 
