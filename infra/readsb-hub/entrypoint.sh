@@ -5,6 +5,10 @@
 # view. Required for SBS-ingested aircraft (Remote ID via rid2all): without it
 # readsb tracks them live but writes NO globe-history traces (verified
 # empirically against the pinned commit, 2026-10).
+# --heatmap: tar1090's replay/playback animates from the heatmap bins
+# (globe_history/<date>/heatmap/<index>.bin.ttf, 30-minute chunks); without
+# it playback has no data. 15 = 15 s position interval within a bin
+# (matches the production feeder's ultrafeeder flags).
 set -euo pipefail
 
 : "${HUB_BEAST_IN_PORT:=30004}"     # feeders connect here (beast_reduce_plus_out + uuid)
@@ -31,5 +35,7 @@ exec tini -- readsb \
     --json-location-accuracy=2 \
     --write-globe-history=/run/globe_history \
     --write-json-globe-index \
+    --heatmap=15 \
+    --heatmap-dir=/run/globe_history \
     --db-file=/usr/local/share/aircraft.csv.gz \
     --quiet
